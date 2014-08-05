@@ -1,3 +1,4 @@
+// data source: http://www.blitzortung.org/Webpages
 angular.module('lightningApp').factory('WebSocket', function () {
   function MySocket(websocket) {
     this.messages = [];
@@ -13,28 +14,21 @@ angular.module('lightningApp').factory('WebSocket', function () {
     if (!this.connected) {
       this.outbox.push(message);
     } else {
-      console.log("Sent", message);
       this.websocket.send(message);
     }
   };
 
   MySocket.prototype._onMessage = function (message) {
-    console.log("MESSAGE", message);
     var data = JSON.parse(message.data);
     this.onMessage(data);
   }
 
   MySocket.prototype._onConnected = function () {
-    console.log("Connected");
     this.connected = true;
     for (var i = 0; i < this.outbox.length; i++) {
       this.send(this.outbox[i]);
     }
   };
-
-
-
-
 
   return function (endpoint) {
     var websocket;
