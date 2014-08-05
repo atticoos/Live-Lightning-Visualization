@@ -1,19 +1,21 @@
-angular.module('lightningApp').directive('lightningMap', function ($window, WebSocket) {
+angular.module('lightningApp').directive('lightningMap', function ($window, $rootScope, LightningSocket) {
   return {
     restrict: 'E',
     scope: {
+      data: '='
     },
     link: function (scope, element) {
-      var socket = WebSocket(),
-          width = angular.element($window).width(),
+      var width = 690,
           height = 700,
           projection, svg, path, g, zoom,
           strikes, strike, strikeAdd;
-socket.send(JSON.stringify({"region":'1',"west":'-130.0',"east":'-60',"north":'62.5',"south":'2.3'}));
+
+      scope.socketData = LightningSocket.data;
+
       projection = d3.geo.mercator()
-        .center([0, 40])
-        .scale(200)
-        .rotate([30, 0]);
+        .center([0, 60])
+        .scale(300)
+        .rotate([80, 0]);
 
       svg = d3.select(element[0]).append('svg')
         .attr('width', width)
@@ -32,45 +34,50 @@ socket.send(JSON.stringify({"region":'1',"west":'-130.0',"east":'-60',"north":'6
           .attr('d', path);
       });
 
-      zoom = d3.behavior.zoom()
-        .on('zoom', function () {
-          g.attr('transform', 'translate(' +
-            d3.event.translate.join(',') +
-            ')scale(' +
-            d3.event.scale +')');
-          g.selectAll('circle')
-            .attr('d', path.projection(projection));
-          g.selectAll('path')
-            .attr('d', path.projection(projection));
-        });
-      svg.call(zoom);
-
-
       strikes = [];
-      var strikeAdd = function (strike) {
-        scope.total++;
-        strikes.push(strike);
-        g.selectAll('circle')
+      var refreshMap = function () {
+        if (strikes.length == 0) return;
+
+        var groups = g.selectAll('g')
           .data(strikes)
           .enter()
-          .append('circle')
+          .append('g');
+
+        groups.append('circle')
           .attr('cx', function (d) {
             return projection([d.lon, d.lat])[0];
           })
           .attr('cy', function (d) {
             return projection([d.lon, d.lat])[1];
           })
-          .attr('r', 5)
-          .attr('fill', 'red');
-          scope.$apply(); // dangerous, should handle this differently
+          .attr('fill', 'red')
+          .attr('r', 5);
 
+        groups.append('circle')
+          .attr('fill', 'transparent')
+          .attr('cx', function (d) {
+            return projection([d.lon, d.lat])[0];
+          })
+          .attr('cy', function (d) {
+            return projection([d.lon, d.lat])[1];
+          })
+          .attr('r', 6)
+          .attr('stroke', 'yellow')
+          .attr('stroke-width', 0.50)
+          .transition()
+          .duration(2000)
+          .attr('r', 40)
+          .transition()
+          .attr('stroke', 'transparent');
       };
 
-
-      socket.onMessage = function (msg) {
-        strikeAdd(msg)
-        scope.$apply();
-      }
+      $rootScope.$watch(function () {
+        return LightningSocket.data
+      }, function () {
+        strikes = LightningSocket.data;
+        refreshMap();
+        console.log("new data", LightningSocket.data);
+      }, true);
 
     }
   }
